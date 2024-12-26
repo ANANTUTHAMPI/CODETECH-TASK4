@@ -1,0 +1,93 @@
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.0;
+
+contract SupplyChain {
+    
+    struct Product {
+        uint id;
+        string name;
+        string origin;
+        string[] handlers;
+        uint256 timestamp;
+        address currentOwner;
+    }
+
+    mapping(uint => Product) public products;
+    uint public productCount = 0;
+
+    event ProductCreated(
+        uint id,
+        string name,
+        string origin,
+        address indexed owner
+    );
+
+    event ProductTransferred(
+        uint id,
+        address indexed from,
+        address indexed to,
+        uint256 timestamp
+    );
+
+    // Create a new product in the supply chain
+    function createProduct(string memory _name, string memory _origin) public {
+        productCount++;
+        products[productCount] = Product(
+            productCount,
+            _name,
+            _origin,
+            new string[](0),
+            block.timestamp,
+            msg.sender
+        );
+        emit ProductCreated(productCount, _name, _origin, msg.sender);
+    }
+
+    // Transfer ownership of a product
+    function transferProduct(uint _productId, address _newOwner) public {
+        require(_productId > 0 && _productId <= productCount, "Invalid product ID");
+        Product storage product = products[_productId];
+        require(msg.sender == product.currentOwner, "Only the current owner can transfer the product");
+        
+        product.handlers.push(addressToString(msg.sender));
+        product.currentOwner = _newOwner;
+        product.timestamp = block.timestamp;
+
+        emit ProductTransferred(_productId, msg.sender, _newOwner, block.timestamp);
+    }
+
+    // Get product details
+    function getProduct(uint _productId) public view returns (
+        uint,
+        string memory,
+        string memory,
+        string[] memory,
+        uint256,
+        address
+    ) {
+        require(_productId > 0 && _productId <= productCount, "Invalid product ID");
+        Product storage product = products[_productId];
+        return (
+            product.id,
+            product.name,
+            product.origin,
+            product.handlers,
+            product.timestamp,
+            product.currentOwner
+        );
+    }
+
+    // Utility function to convert address to string
+    function addressToString(address _address) internal pure returns (string memory) {
+        bytes32 value = bytes32(uint256(uint160(_address)));
+        bytes memory alphabet = "0123456789abcdef";
+        bytes memory str = new bytes(42);
+        str[0] = '0';
+        str[1] = 'x';
+        for (uint i = 0; i < 20; i++) {
+            str[2 + i * 2] = alphabet[uint8(value[i + 12] >> 4) & 0xF];
+            str[3 + i * 2] = alphabet[uint8(value[i + 12]) & 0xF];
+        }
+        return string(str);
+    }
+}
